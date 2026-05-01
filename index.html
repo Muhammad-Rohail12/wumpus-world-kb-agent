@@ -1,457 +1,1111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>Wumpus World · KB Agent · Amber Crypt</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  /* ========== DARK BROWN THEME ========== */
-  :root {
-    --bg-0: #0a0502; --bg-1: #120a05; --bg-2: #1b110a; --bg-3: #251a10;
-    --b1: rgba(200,150,100,0.12); --b2: rgba(200,150,100,0.2);
-    --cyan: #e0a46b; --green: #b59a6b; --amber: #f5bc70; --red: #c45a42;
-    --purple: #b58a6b; --text-1: #f2e2cc; --text-2: #cbad8a; --text-3: #8a6e4e;
-    --mono: 'JetBrains Mono', monospace; --ui: 'DM Sans', sans-serif; --head: 'Syne', sans-serif;
-    --cell: 78px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: var(--ui); background: var(--bg-0); color: var(--text-1);
-    height: 100vh; display: grid; grid-template-rows: 56px 1fr; overflow: hidden;
-  }
-  .topbar {
-    background: var(--bg-1); border-bottom: 1px solid var(--b2);
-    display: flex; align-items: center; padding: 0 24px; gap: 16px;
-  }
-  .logo {
-    font-family: var(--head); font-size: 1.05rem; font-weight: 800;
-    background: linear-gradient(135deg, var(--cyan), var(--amber));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .badge {
-    font-family: var(--mono); font-size: 0.58rem; padding: 3px 9px;
-    border-radius: 100px; border: 1px solid;
-  }
-  .b-cyan { color: var(--cyan); border-color: rgba(224,164,107,0.3); }
-  .ml-auto { margin-left: auto; display: flex; gap: 10px; }
-  .layout { display: grid; grid-template-columns: 1fr 360px; overflow: hidden; }
-  .left-panel {
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-    padding: 24px; overflow-y: auto;
-    background: radial-gradient(ellipse at 30% 60%, rgba(224,164,107,0.04), transparent);
-  }
-  .grid-container-wrap {
-    background: rgba(0,0,0,0.25); border: 1px solid var(--b2); border-radius: 14px; padding: 10px;
-  }
-  #game-grid { display: grid; gap: 6px; }
-  .cell {
-    width: var(--cell); height: var(--cell); border-radius: 8px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    position: relative; background: #1c140c; border: 1px solid rgba(200,150,100,0.15);
-  }
-  .cell-agent { background: linear-gradient(135deg, #3f2c1c, #2b1f13); border: 2px solid var(--cyan); }
-  .cell-visited { background: #2a241a; border-color: #b59a6b; }
-  .cell-safe-inferred { background: #2a2a1c; border: 1px dashed #b59a6b; }
-  .cell-pit { background: #2a1410; border-color: var(--red); }
-  .cell-wumpus { background: #251a1f; border-color: #b58a6b; }
-  .cell-gold { background: #2f2612; border-color: var(--amber); }
-  .cell-danger { background: #2a1f12; border: 1px dashed #f5bc70; }
-  .cell-coord { position: absolute; top: 2px; left: 4px; font-size: 0.35rem; color: #8a6e4e; }
-  .cell-icon { font-size: 1.5rem; }
-  .cell-label { font-size: 0.4rem; margin-top: 2px; }
-  .cell-percepts { position: absolute; bottom: 2px; right: 4px; font-size: 0.55rem; }
-  .legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 8px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.6rem; }
-  .log-section {
-    width: 100%; background: var(--bg-2); border-radius: 12px; border: 1px solid var(--b2);
-    margin-top: 8px; display: flex; flex-direction: column;
-  }
-  .log-header { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--b1); }
-  .log-title { font-family: var(--mono); font-size: 0.55rem; color: var(--cyan); }
-  .log-clear { background: none; border: none; color: #8a6e4e; cursor: pointer; }
-  .log-body { height: 200px; overflow-y: auto; padding: 10px; font-family: var(--mono); font-size: 0.6rem; }
-  .log-entry { display: flex; gap: 8px; padding: 2px 0; }
-  .log-time { color: #8a6e4e; }
-  .log-entry.move .log-msg { color: #b59a6b; }
-  .log-entry.win .log-msg { color: #f5bc70; font-weight: bold; }
-  .right-panel { background: var(--bg-1); border-left: 1px solid var(--b2); overflow-y: auto; }
-  .pane { padding: 16px; border-bottom: 1px solid var(--b1); }
-  .pane-title { font-family: var(--mono); font-size: 0.55rem; color: var(--cyan); margin-bottom: 12px; }
-  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-  .field input { width: 100%; background: var(--bg-0); border: 1px solid var(--b2); color: var(--text-1); padding: 6px; border-radius: 6px; }
-  .btns { display: flex; gap: 8px; }
-  .btn { font-family: var(--mono); padding: 8px 12px; border-radius: 6px; cursor: pointer; border: 1px solid; background: transparent; flex: 1; }
-  .btn-new { border-color: var(--cyan); color: var(--cyan); }
-  .btn-auto { border-color: var(--green); color: var(--green); }
-  .btn-pause { border-color: var(--amber); color: var(--amber); }
-  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .metric-card { background: var(--bg-2); border-radius: 8px; padding: 8px; text-align: center; }
-  .metric-val { font-family: var(--head); font-size: 1.5rem; }
-  .percept-row { display: flex; gap: 8px; margin: 8px 0; }
-  .status-bar { background: var(--bg-0); border-radius: 8px; padding: 8px; font-family: monospace; margin: 8px 0; }
-  .kb-preview { background: var(--bg-0); border-radius: 6px; padding: 8px; font-family: monospace; font-size: 0.55rem; max-height: 60px; overflow: auto; }
-  @media (max-width: 700px) {
-    .layout { grid-template-columns: 1fr; }
-    :root { --cell: 60px; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WUMPUS WORLD · Neural KB Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #070b14;
+      --bg-secondary: #0d1321;
+      --bg-tertiary: #131b2a;
+      --bg-card: #162032;
+      --border-subtle: #1e2d42;
+      --border-active: #2d4467;
+      --text-primary: #e8edf5;
+      --text-secondary: #94a3b8;
+      --text-muted: #54657e;
+      --accent-cyan: #06d6f0;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --accent-pink: #ec4899;
+      --glass-bg: rgba(19, 27, 42, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.06);
+      --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 40px rgba(6, 214, 240, 0.15);
+      --radius-xl: 24px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      background-image: 
+        radial-gradient(ellipse 80% 60% at 50% -20%, rgba(6, 214, 240, 0.06), transparent),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.04), transparent),
+        radial-gradient(ellipse 50% 40% at 20% 50%, rgba(59, 130, 246, 0.03), transparent);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 1500px;
+      height: 95vh;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── TOP NAVIGATION BAR ── */
+    .navbar {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-lg);
+      flex-shrink: 0;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 20px rgba(6, 214, 240, 0.3);
+    }
+
+    .nav-title {
+      font-weight: 800;
+      font-size: 1.2rem;
+      background: linear-gradient(135deg, var(--accent-cyan), #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-subtitle {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .nav-stats {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 25px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .stat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.5); }
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .main-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 16px;
+      min-height: 0;
+    }
+
+    /* ── GAME AREA ── */
+    .game-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.003) 2px, rgba(255,255,255,0.003) 4px);
+      pointer-events: none;
+    }
+
+    .banner {
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      animation: slideInDown 0.5s ease;
+      display: none;
+      text-align: center;
+      max-width: 500px;
+    }
+
+    .banner.show { display: block; }
+    .banner.win {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+    .banner.lose {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .banner.warn {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fcd34d;
+    }
+
+    @keyframes slideInDown {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .grid-container {
+      background: rgba(0, 0, 0, 0.3);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      box-shadow: var(--shadow-glow), inset 0 1px 0 rgba(255,255,255,0.03);
+      position: relative;
+    }
+
+    .grid-container::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: var(--radius-lg);
+      padding: 2px;
+      background: linear-gradient(135deg, transparent 40%, rgba(6,214,240,0.15) 60%, transparent);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    #gameGrid {
+      display: grid;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cell {
+      width: 80px;
+      height: 80px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: var(--transition);
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .cell:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+
+    .cell-coord {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.55rem;
+      color: rgba(255,255,255,0.25);
+      font-weight: 500;
+    }
+
+    .cell-icon {
+      font-size: 2.2rem;
+      transition: var(--transition);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+      z-index: 2;
+    }
+
+    .cell-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.55rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+      z-index: 2;
+      text-transform: uppercase;
+    }
+
+    .cell-percepts {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      display: flex;
+      gap: 2px;
+      font-size: 0.7rem;
+      z-index: 2;
+    }
+
+    /* Cell States */
+    .cell-unknown { background: #0d1520; border-color: rgba(255,255,255,0.06); }
+    .cell-unknown:hover { border-color: rgba(255,255,255,0.15); }
+
+    .cell-agent {
+      background: linear-gradient(135deg, #0a2a3a, #0d1f33);
+      border-color: var(--accent-cyan);
+      border-width: 2.5px;
+      box-shadow: 0 0 30px rgba(6,214,240,0.35), inset 0 0 20px rgba(6,214,240,0.1);
+      animation: agentPulse 2.5s ease-in-out infinite;
+    }
+
+    @keyframes agentPulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(6,214,240,0.35), inset 0 0 20px rgba(6,214,240,0.1); }
+      50% { box-shadow: 0 0 50px rgba(6,214,240,0.55), inset 0 0 30px rgba(6,214,240,0.18); }
+    }
+
+    .cell-safe-known {
+      background: #0a1f18;
+      border-color: rgba(16, 185, 129, 0.4);
+      box-shadow: inset 0 0 15px rgba(16,185,129,0.08);
+    }
+
+    .cell-safe-inferred {
+      background: #0a1f18;
+      border-color: rgba(16, 185, 129, 0.2);
+      border-style: dashed;
+    }
+
+    .cell-danger-suspected {
+      background: #1a1210;
+      border-color: rgba(245, 158, 11, 0.35);
+      border-style: dashed;
+    }
+
+    .cell-danger-confirmed {
+      background: #1a0d0f;
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .cell-pit {
+      background: #1a0d14;
+      border-color: var(--accent-red);
+      box-shadow: 0 0 20px rgba(239,68,68,0.3);
+    }
+
+    .cell-wumpus {
+      background: #1a1228;
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 20px rgba(139,92,246,0.3);
+    }
+
+    .cell-gold {
+      background: #1a1608;
+      border-color: var(--accent-amber);
+      box-shadow: 0 0 20px rgba(245,158,11,0.3);
+      animation: goldShimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes goldShimmer {
+      0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+      50% { box-shadow: 0 0 40px rgba(245,158,11,0.5), inset 0 0 20px rgba(245,158,11,0.1); }
+    }
+
+    /* ── LEGEND ── */
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      padding: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1.5px solid;
+      flex-shrink: 0;
+    }
+
+    /* ── SIDE PANEL ── */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .side-panel::-webkit-scrollbar { width: 4px; }
+    .side-panel::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 2px; }
+
+    .panel-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      flex-shrink: 0;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      letter-spacing: 1.5px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+    }
+
+    .card-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border-subtle), transparent);
+    }
+
+    /* Welcome Card */
+    .welcome-card {
+      background: linear-gradient(135deg, rgba(6,214,240,0.08), rgba(139,92,246,0.06));
+      border: 1px solid rgba(6,214,240,0.2);
+    }
+
+    .probability-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: rgba(0,0,0,0.3);
+      border-radius: var(--radius-md);
+      margin-top: 8px;
+    }
+
+    .prob-ring {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: conic-gradient(var(--accent-cyan) var(--prob, 0%), transparent var(--prob, 0%));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .prob-ring::after {
+      content: '';
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      position: absolute;
+    }
+
+    .prob-value {
+      position: relative;
+      z-index: 1;
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+    }
+
+    /* Controls */
+    .control-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.78rem;
+      padding: 10px 18px;
+      border-radius: 25px;
+      border: 1.5px solid;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      flex: 1;
+      justify-content: center;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      min-width: 80px;
+    }
+
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+    .btn-primary { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+    .btn-primary:hover:not(:disabled) { background: rgba(6,214,240,0.12); box-shadow: 0 0 25px rgba(6,214,240,0.2); }
+
+    .btn-success { border-color: var(--accent-green); color: var(--accent-green); }
+    .btn-success:hover:not(:disabled) { background: rgba(16,185,129,0.12); box-shadow: 0 0 25px rgba(16,185,129,0.2); }
+
+    .btn-warning { border-color: var(--accent-amber); color: var(--accent-amber); }
+    .btn-warning:hover:not(:disabled) { background: rgba(245,158,11,0.12); }
+
+    .btn-ghost { border-color: var(--border-subtle); color: var(--text-secondary); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--text-secondary); color: var(--text-primary); }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric-tile {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .metric-label {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .val-cyan { color: var(--accent-cyan); }
+    .val-green { color: var(--accent-green); }
+    .val-amber { color: var(--accent-amber); }
+    .val-purple { color: var(--accent-purple); }
+
+    /* Percept chips */
+    .percept-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 28px;
+      align-items: center;
+    }
+
+    .chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border: 1px solid;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .chip-breeze { color: #67e8f9; border-color: rgba(6,214,240,0.4); background: rgba(6,214,240,0.08); }
+    .chip-stench { color: #c4b5fd; border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.08); }
+    .chip-glitter { color: #fde68a; border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
+    .chip-none { color: var(--text-muted); border-color: var(--border-subtle); }
+
+    /* Agent Status */
+    .agent-position {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      color: var(--accent-cyan);
+    }
+
+    /* KB Preview */
+    .kb-clauses-box {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      color: rgba(139,92,246,0.8);
+      max-height: 80px;
+      overflow-y: auto;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    /* Log Panel */
+    .log-panel {
+      flex: 1;
+      min-height: 150px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .log-clear-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      transition: var(--transition);
+    }
+
+    .log-clear-btn:hover { color: var(--accent-red); }
+
+    .log-body {
+      flex: 1;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      line-height: 1.7;
+      background: rgba(0,0,0,0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .log-entry { display: flex; gap: 8px; padding: 1px 0; }
+    .log-time { color: var(--text-muted); flex-shrink: 0; font-size: 0.55rem; }
+    .log-msg { color: var(--text-secondary); }
+    .log-entry.info .log-msg { color: var(--accent-cyan); }
+    .log-entry.move .log-msg { color: var(--accent-green); }
+    .log-entry.proof .log-msg { color: #22d3ee; }
+    .log-entry.danger .log-msg { color: var(--accent-red); }
+    .log-entry.warn .log-msg { color: var(--accent-amber); }
+    .log-entry.win .log-msg { color: #fbbf24; font-weight: 600; }
+
+    /* Overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 11, 20, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-overlay.show { display: flex; }
+
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 3px solid var(--border-subtle);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-cyan);
+      letter-spacing: 3px;
+      font-size: 0.8rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+      .cell { width: 60px; height: 60px; }
+      .cell-icon { font-size: 1.5rem; }
+    }
+  </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="logo">⬡ WUMPUS WORLD</div>
-  <div class="ml-auto">
-    <span class="badge b-cyan">Knowledge-Based Agent</span>
+<div class="app-container">
+  <!-- ── NAVBAR ── -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <div class="nav-logo">⬡</div>
+      <div>
+        <div class="nav-title">WUMPUS WORLD</div>
+        <div class="nav-subtitle">Knowledge-Based Agent · CNF Resolution</div>
+      </div>
+    </div>
+    <div class="nav-stats">
+      <div class="stat-pill">
+        <div class="stat-dot"></div>
+        <span id="navStatus">IDLE</span>
+      </div>
+      <div class="stat-pill">
+        <span>⚡</span>
+        <span id="navMoves">0 moves</span>
+      </div>
+      <div class="stat-pill">
+        <span>🧠</span>
+        <span id="navKB">0 clauses</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div class="main-content">
+    <!-- Left: Game Grid -->
+    <div class="game-panel">
+      <div id="banner" class="banner"></div>
+      <div class="grid-container">
+        <div id="gameGrid"></div>
+      </div>
+      <div class="legend-bar" id="legendBar"></div>
+    </div>
+
+    <!-- Right: Control Panel -->
+    <div class="side-panel">
+      <!-- Welcome / Probability Card -->
+      <div class="panel-card welcome-card">
+        <div class="card-header">🎯 MISSION BRIEFING</div>
+        <p style="font-size:0.75rem; color: var(--text-secondary); margin-bottom: 8px;">
+          Navigate the cave. Avoid pits & wumpus. Find the gold.
+        </p>
+        <div class="probability-display">
+          <div class="prob-ring" style="--prob: 0%;">
+            <div class="prob-value" id="probPercent">--%</div>
+          </div>
+          <div>
+            <div style="font-weight:700; font-size:0.8rem;">Survival Probability</div>
+            <div style="font-size:0.6rem; color:var(--text-muted);">Based on KB inference</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="panel-card">
+        <div class="card-header">🎮 CONTROLS</div>
+        <div class="control-row" style="margin-bottom:8px;">
+          <button class="btn btn-primary" onclick="newGame()">🔄 New Game</button>
+        </div>
+        <div class="control-row">
+          <button class="btn btn-success" id="btnAuto" onclick="toggleAuto()" disabled>▶ Auto Play</button>
+          <button class="btn btn-ghost" id="btnStep" onclick="stepOnce()" disabled>⏭ Step</button>
+        </div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+          <label style="font-size:0.65rem; color:var(--text-muted);">Speed</label>
+          <input type="range" id="speedSlider" min="200" max="2000" value="600" step="100" 
+                 style="flex:1; accent-color:var(--accent-cyan);">
+          <span id="speedVal" style="font-size:0.65rem; color:var(--accent-cyan);">600ms</span>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="panel-card">
+        <div class="card-header">📊 REAL-TIME METRICS</div>
+        <div class="metrics-grid">
+          <div class="metric-tile">
+            <div class="metric-value val-cyan" id="metInf">0</div>
+            <div class="metric-label">Inference Steps</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value val-green" id="metMoves">0</div>
+            <div class="metric-label">Agent Moves</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value val-amber" id="metSafe">0</div>
+            <div class="metric-label">Safe Cells</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value val-purple" id="metKB">0</div>
+            <div class="metric-label">KB Clauses</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Percepts -->
+      <div class="panel-card">
+        <div class="card-header">👁 ACTIVE PERCEPTS</div>
+        <div class="percept-chips" id="perceptChips">
+          <span class="chip chip-none">NO GAME</span>
+        </div>
+      </div>
+
+      <!-- Agent Status -->
+      <div class="panel-card">
+        <div class="card-header">🤖 AGENT STATUS</div>
+        <div class="agent-position" id="agentPos">Position: — | Status: IDLE</div>
+        <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:6px; margin-top:8px;">
+          <div class="metric-tile">
+            <div class="metric-value" style="font-size:1.2rem;" id="agVisited">0</div>
+            <div class="metric-label">Visited</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value" style="font-size:1.2rem;" id="agFrontier">0</div>
+            <div class="metric-label">Frontier</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value" style="font-size:1.2rem; color:var(--accent-red);" id="agUnsafe">0</div>
+            <div class="metric-label">Unsafe</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KB Preview -->
+      <div class="panel-card">
+        <div class="card-header">🧠 KNOWLEDGE BASE</div>
+        <div class="kb-clauses-box" id="kbBox">—</div>
+      </div>
+
+      <!-- Log -->
+      <div class="panel-card log-panel">
+        <div class="log-header">
+          <span class="card-header" style="margin-bottom:0;">📜 INFERENCE LOG</span>
+          <button class="log-clear-btn" onclick="clearLog()">CLEAR</button>
+        </div>
+        <div class="log-body" id="logBody"></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="layout">
-  <div class="left-panel">
-    <div id="status-banner" class="status-banner"></div>
-    <div class="grid-container-wrap">
-      <div id="game-grid"></div>
-    </div>
-    <div class="legend">
-      <div class="legend-item">🤖 Agent &nbsp; ✓ Visited &nbsp; ◈ Safe &nbsp; 🕳️ Pit &nbsp; 👹 Wumpus &nbsp; 💰 Gold</div>
-    </div>
-    <div class="log-section">
-      <div class="log-header"><span class="log-title">📜 Move Log</span><button class="log-clear" id="clearLogBtn">clear</button></div>
-      <div class="log-body" id="logBody"></div>
-    </div>
-  </div>
-
-  <div class="right-panel">
-    <div class="pane">
-      <div class="pane-title">⚙️ Config</div>
-      <div class="config-grid">
-        <div class="field"><label>ROWS</label><input type="number" id="rowsInput" value="4" min="3" max="6"></div>
-        <div class="field"><label>COLS</label><input type="number" id="colsInput" value="4" min="3" max="6"></div>
-        <div class="field"><label>PITS</label><input type="number" id="pitsInput" value="3" min="1" max="6"></div>
-        <div class="field"><label>SPEED</label><input type="number" id="speedInput" value="600" min="200" max="1500"></div>
-      </div>
-      <div class="btns">
-        <button class="btn btn-new" id="newGameBtn">🌲 NEW</button>
-        <button class="btn btn-auto" id="autoBtn" disabled>▶ AUTO</button>
-        <button class="btn btn-step" id="stepBtn" disabled>⟳ STEP</button>
-      </div>
-    </div>
-    <div class="pane">
-      <div class="pane-title">📊 Metrics</div>
-      <div class="metrics-grid">
-        <div class="metric-card"><div class="metric-val" id="infSteps">0</div><div>Inf. Steps</div></div>
-        <div class="metric-card"><div class="metric-val" id="moveCount">0</div><div>Moves</div></div>
-        <div class="metric-card"><div class="metric-val" id="safeCount">0</div><div>Safe</div></div>
-        <div class="metric-card"><div class="metric-val" id="kbSize">0</div><div>KB</div></div>
-      </div>
-    </div>
-    <div class="pane">
-      <div class="pane-title">👁️ Percepts</div>
-      <div class="percept-row" id="perceptRow">—</div>
-      <div class="status-bar" id="agentStatusBar"></div>
-      <div class="kb-preview" id="kbPreview">—</div>
-    </div>
-  </div>
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="overlay">
+  <div class="loader"></div>
+  <div class="loading-text">PROCESSING…</div>
 </div>
 
 <script>
-// ============================================================
-//  SELF-CONTAINED WUMPUS WORLD - NO BACKEND NEEDED
-// ============================================================
+  // ── State ──
+  let gameState = null;
+  let autoTimer = null;
+  let isPlaying = false;
+  let logCounter = 0;
 
-class WumpusWorld {
-  constructor(rows, cols, numPits) {
-    this.rows = rows; this.cols = cols;
-    this.numPits = Math.min(numPits, rows*cols - 3);
-    this.grid = Array(rows).fill().map(() => Array(cols).fill().map(() => ({
-      hasPit: false, hasWumpus: false, hasGold: false, visited: false,
-      breeze: false, stench: false, glitter: false, safe: false, unsafe: false
-    })));
-    this.agent = { r: 0, c: 0 }; this.alive = true; this.won = false; this.stuck = false;
-    this.moves = 0; this.infSteps = 0;
-    this.kb = new Set(); this.safeSet = new Set(); this.unsafeSet = new Set(); this.visitedSet = new Set();
-    this.generateWorld(); this.initKB(); this.updatePercepts();
-    this.visitedSet.add("0,0"); this.safeSet.add("0,0"); this.addPerceptFact(0,0);
-    this.updateInferences();
+  // ── API ──
+  async function apiCall(url, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return res.json();
   }
-  
-  generateWorld() {
-    let free = [];
-    for(let i=0;i<this.rows;i++) for(let j=0;j<this.cols;j++) if(!(i===0&&j===0)) free.push([i,j]);
-    for(let i=free.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [free[i],free[j]]=[free[j],free[i]]; }
-    let idx=0;
-    let [wr,wc]=free[idx++]; this.grid[wr][wc].hasWumpus=true;
-    for(let p=0;p<this.numPits;p++){ let [pr,pc]=free[idx++]; this.grid[pr][pc].hasPit=true; }
-    let [gr,gc]=free[idx++];
-    while(this.grid[gr][gc].hasPit || this.grid[gr][gc].hasWumpus){ [gr,gc]=free[idx++]; }
-    this.grid[gr][gc].hasGold=true;
+
+  // ── UI Helpers ──
+  function $(id) { return document.getElementById(id); }
+
+  function showOverlay(v) { $('overlay').className = v ? 'loading-overlay show' : 'loading-overlay'; }
+
+  function setBtns(enabled) {
+    $('btnAuto').disabled = !enabled;
+    $('btnStep').disabled = !enabled;
   }
-  
-  updatePercepts() {
-    for(let i=0;i<this.rows;i++) for(let j=0;j<this.cols;j++){
-      this.grid[i][j].breeze = this.hasAdjacentPit(i,j);
-      this.grid[i][j].stench = this.hasAdjacentWumpus(i,j);
-      if(this.grid[i][j].hasGold) this.grid[i][j].glitter=true;
+
+  // ── New Game ──
+  async function newGame() {
+    stopAuto();
+    clearLog();
+    hideBanner();
+    showOverlay(true);
+    const res = await apiCall('/api/new_game', 'POST', { rows: 4, cols: 4, num_pits: 3 });
+    showOverlay(false);
+    if (res.success) {
+      gameState = res.state;
+      setBtns(true);
+      renderAll(gameState);
+      addLog('═══ NEW MISSION STARTED ═══', 'info');
+      addLog('Agent at (0,0). KB initialized.', 'info');
+      updateNavStatus('ACTIVE', '#10b981');
     }
   }
-  
-  hasAdjacentPit(r,c){ const dirs=[[-1,0],[1,0],[0,-1],[0,1]]; for(let [dr,dc] of dirs){ let nr=r+dr,nc=c+dc; if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&this.grid[nr][nc].hasPit) return true; } return false; }
-  hasAdjacentWumpus(r,c){ const dirs=[[-1,0],[1,0],[0,-1],[0,1]]; for(let [dr,dc] of dirs){ let nr=r+dr,nc=c+dc; if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&this.grid[nr][nc].hasWumpus) return true; } return false; }
-  
-  initKB(){ this.kb.add("NoPit_0_0"); this.kb.add("NoWumpus_0_0"); }
-  
-  addPerceptFact(r,c){
-    let cell=this.grid[r][c];
-    if(cell.breeze) this.kb.add(`Breeze_${r}_${c}`); else this.kb.add(`~Breeze_${r}_${c}`);
-    if(cell.stench) this.kb.add(`Stench_${r}_${c}`); else this.kb.add(`~Stench_${r}_${c}`);
-    if(cell.glitter) this.kb.add(`Glitter_${r}_${c}`);
-    this.infSteps++;
-  }
-  
-  consistentWithKB(r,c,isPit){
-    let relevant=new Set(); relevant.add(`${r},${c}`);
-    for(let vis of this.visitedSet){
-      let [vr,vc]=vis.split(',').map(Number);
-      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
-        let nr=vr+dr,nc=vc+dc;
-        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)) relevant.add(`${nr},${nc}`);
-      }
-    }
-    let cells=Array.from(relevant).map(s=>s.split(',').map(Number));
-    if(cells.length>18) return true;
-    let n=cells.length;
-    for(let mask=0;mask<(1<<n);mask++){
-      let assign=new Map();
-      for(let i=0;i<n;i++){ let [rr,cc]=cells[i]; assign.set(`${rr},${cc}`, (mask>>i)&1); }
-      assign.set(`${r},${c}`, isPit?1:0);
-      let ok=true;
-      for(let fact of this.kb){
-        let neg=fact.startsWith("~");
-        let pred=neg?fact.slice(1):fact;
-        if(pred.startsWith("Breeze_")){
-          let m=pred.match(/Breeze_(\d+)_(\d+)/); if(!m) continue;
-          let rr=parseInt(m[1]),cc=parseInt(m[2]);
-          let breeze=false;
-          for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
-            let nr=rr+dr,nc=cc+dc;
-            if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&assign.get(`${nr},${nc}`)===1) breeze=true;
-          }
-          if(neg?!breeze:breeze){ ok=false; break; }
-        }
-      }
-      for(let vis of this.visitedSet) if(assign.get(vis)===1){ ok=false; break; }
-      for(let uns of this.unsafeSet) if(assign.get(uns)===0){ ok=false; break; }
-      if(ok) return true;
-    }
-    return false;
-  }
-  
-  updateInferences(){
-    let frontier=new Set();
-    for(let vis of this.visitedSet){
-      let [vr,vc]=vis.split(',').map(Number);
-      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
-        let nr=vr+dr,nc=vc+dc;
-        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)) frontier.add(`${nr},${nc}`);
-      }
-    }
-    for(let f of frontier){
-      let [fr,fc]=f.split(',').map(Number);
-      let canPit=this.consistentWithKB(fr,fc,true);
-      let canSafe=this.consistentWithKB(fr,fc,false);
-      if(!canPit&&canSafe){ this.safeSet.add(f); this.grid[fr][fc].safe=true; }
-      else if(canPit&&!canSafe){ this.unsafeSet.add(f); this.grid[fr][fc].unsafe=true; }
-    }
-  }
-  
-  getPercepts(){ let c=this.grid[this.agent.r][this.agent.c]; return {breeze:c.breeze,stench:c.stench,glitter:c.glitter}; }
-  
-  moveTo(nr,nc){
-    if(!this.alive||this.won) return false;
-    this.agent.r=nr; this.agent.c=nc; this.moves++;
-    let key=`${nr},${nc}`; this.visitedSet.add(key); this.grid[nr][nc].visited=true;
-    let cell=this.grid[nr][nc]; this.addPerceptFact(nr,nc);
-    if(cell.hasPit){ this.alive=false; return false; }
-    if(cell.hasWumpus){ this.alive=false; return false; }
-    if(cell.hasGold){ this.won=true; return true; }
-    this.updateInferences(); return true;
-  }
-  
-  getNextMove(){
-    if(this.won||!this.alive) return null;
-    let candidates=[], q=[{r:this.agent.r,c:this.agent.c,path:[]}], seen=new Set();
-    for(let vis of this.visitedSet){
-      let [vr,vc]=vis.split(',').map(Number);
-      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
-        let nr=vr+dr,nc=vc+dc;
-        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)){
-          if(this.safeSet.has(`${nr},${nc}`)||!this.unsafeSet.has(`${nr},${nc}`)) candidates.push([nr,nc]);
+
+  // ── Step ──
+  async function stepOnce() {
+    if (!gameState || gameState.done) return;
+    showOverlay(true);
+    const res = await apiCall('/api/step', 'POST');
+    showOverlay(false);
+    if (res.success) {
+      gameState = res.state;
+      renderAll(gameState);
+      const r = res.result;
+      if (r) {
+        if (r.type === 'died') {
+          showBanner(`💀 AGENT DIED — ${r.cause} at (${r.r},${r.c})`, 'lose');
+          stopAuto();
+          updateNavStatus('TERMINATED', '#ef4444');
+        } else if (r.type === 'won') {
+          showBanner(`🏆 GOLD FOUND! ${gameState.moves} moves`, 'win');
+          stopAuto();
+          updateNavStatus('VICTORY', '#f59e0b');
+        } else if (r.type === 'stuck') {
+          showBanner('⚠️ STUCK — No safe path', 'warn');
+          stopAuto();
+          updateNavStatus('STUCK', '#f59e0b');
         }
       }
     }
-    if(candidates.length===0){ this.stuck=true; return null; }
-    seen.add(`${this.agent.r},${this.agent.c}`);
-    while(q.length){
-      let {r,c,path}=q.shift();
-      if(candidates.some(([fr,fc])=>fr===r&&fc===c)) return path.length===0?[r,c]:path[0];
-      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
-        let nr=r+dr,nc=c+dc;
-        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!seen.has(`${nr},${nc}`)){
-          let key=`${nr},${nc}`;
-          if(this.visitedSet.has(key)||this.safeSet.has(key)||!this.unsafeSet.has(key)){
-            seen.add(key); q.push({r:nr,c:nc,path:[...path,[nr,nc]]});
-          }
-        }
+  }
+
+  // ── Auto ──
+  function toggleAuto() {
+    isPlaying ? stopAuto() : startAuto();
+  }
+
+  function startAuto() {
+    if (!gameState || gameState.done) return;
+    isPlaying = true;
+    $('btnAuto').textContent = '⏸ Pause';
+    $('btnAuto').className = 'btn btn-warning';
+    const speed = parseInt($('speedSlider').value) || 600;
+    autoTimer = setInterval(async () => {
+      if (!gameState || gameState.done) { stopAuto(); return; }
+      await stepOnce();
+    }, speed);
+  }
+
+  function stopAuto() {
+    isPlaying = false;
+    if (autoTimer) clearInterval(autoTimer);
+    autoTimer = null;
+    $('btnAuto').textContent = '▶ Auto Play';
+    $('btnAuto').className = 'btn btn-success';
+  }
+
+  // ── Render ──
+  function renderAll(state) {
+    renderGrid(state);
+    renderMetrics(state);
+    renderPercepts(state);
+    renderAgentStatus(state);
+    renderKB(state);
+    renderProbability(state);
+    updateNavCounts(state);
+    renderLogEntries(state.step_log);
+  }
+
+  function renderGrid(state) {
+    const grid = $('gameGrid');
+    grid.style.gridTemplateColumns = `repeat(${state.cols}, 80px)`;
+    grid.innerHTML = '';
+    for (let r = 0; r < state.rows; r++) {
+      for (let c = 0; c < state.cols; c++) {
+        grid.appendChild(buildCell(state.grid[r][c], state));
       }
     }
-    return null;
   }
-  
-  step(){
-    if(this.won||!this.alive||this.stuck) return {type:this.won?"won":(this.alive?(this.stuck?"stuck":"done"):"died")};
-    let move=this.getNextMove();
-    if(!move){ this.stuck=true; return {type:"stuck"}; }
-    let [nr,nc]=move;
-    let gold=this.moveTo(nr,nc);
-    if(!this.alive) return {type:"died",r:nr,c:nc};
-    if(gold) return {type:"won"};
-    return {type:"move",r:nr,c:nc};
-  }
-  
-  getState(){
-    let gridRep=[];
-    for(let i=0;i<this.rows;i++){
-      let row=[];
-      for(let j=0;j<this.cols;j++){
-        let cell=this.grid[i][j];
-        row.push({
-          r:i,c:j,has_pit:cell.hasPit,has_wumpus:cell.hasWumpus,has_gold:cell.hasGold,
-          is_visited:this.visitedSet.has(`${i},${j}`),is_safe:this.safeSet.has(`${i},${j}`),
-          is_unsafe:this.unsafeSet.has(`${i},${j}`),breeze:cell.breeze,stench:cell.stench,
-          glitter:cell.glitter,is_agent:(i===this.agent.r&&j===this.agent.c&&this.alive&&!this.won)
-        });
-      }
-      gridRep.push(row);
+
+  function buildCell(cell, state) {
+    const div = document.createElement('div');
+    let cls = 'cell cell-unknown';
+    let icon = '·';
+    let label = '';
+    const isAgent = cell.is_agent && state.agent_status !== 'dead';
+
+    if (isAgent) { cls = 'cell cell-agent'; icon = '🤖'; label = 'AGENT'; }
+    else if (cell.has_pit) { cls = 'cell cell-pit'; icon = '🕳️'; label = 'PIT'; }
+    else if (cell.has_wumpus) { cls = 'cell cell-wumpus'; icon = '👹'; label = 'WUMPUS'; }
+    else if (cell.has_gold) { cls = 'cell cell-gold'; icon = '💰'; label = 'GOLD'; }
+    else if (cell.is_visited && cell.is_unsafe) { cls = 'cell cell-danger-confirmed'; icon = '☠️'; label = 'FATAL'; }
+    else if (cell.is_visited) { cls = 'cell cell-safe-known'; icon = '✓'; }
+    else if (cell.is_unsafe) { cls = 'cell cell-danger-suspected'; icon = '⚠️'; label = 'DANGER'; }
+    else if (cell.is_safe) { cls = 'cell cell-safe-inferred'; icon = '◈'; label = 'SAFE'; }
+
+    let percHTML = '';
+    if (cell.is_visited && !isAgent) {
+      if (cell.breeze) percHTML += '<span title="Breeze">💨</span>';
+      if (cell.stench) percHTML += '<span title="Stench">🟣</span>';
+      if (cell.glitter) percHTML += '<span title="Glitter">✨</span>';
     }
-    let fc=0;
-    for(let vis of this.visitedSet){
-      let [vr,vc]=vis.split(',').map(Number);
-      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
-        let nr=vr+dr,nc=vc+dc;
-        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)) fc++;
-      }
+
+    div.className = cls;
+    div.innerHTML = `
+      <span class="cell-coord">${cell.r},${cell.c}</span>
+      <span class="cell-icon">${icon}</span>
+      ${label ? `<span class="cell-label">${label}</span>` : ''}
+      ${percHTML ? `<div class="cell-percepts">${percHTML}</div>` : ''}
+    `;
+    return div;
+  }
+
+  function renderMetrics(state) {
+    $('metInf').textContent = state.inf_steps;
+    $('metMoves').textContent = state.moves;
+    $('metSafe').textContent = state.safe_count;
+    $('metKB').textContent = state.kb_size;
+  }
+
+  function renderPercepts(state) {
+    const p = state.current_percepts;
+    let html = '';
+    if (p.breeze) html += '<span class="chip chip-breeze">💨 Breeze</span>';
+    if (p.stench) html += '<span class="chip chip-stench">🟣 Stench</span>';
+    if (p.glitter) html += '<span class="chip chip-glitter">✨ Glitter</span>';
+    if (!html) html = '<span class="chip chip-none">Clear</span>';
+    $('perceptChips').innerHTML = html;
+  }
+
+  function renderAgentStatus(state) {
+    $('agentPos').textContent = `Position: (${state.agent_row},${state.agent_col}) | Status: ${state.agent_status.toUpperCase()} | Moves: ${state.moves}`;
+    $('agVisited').textContent = state.visited_count;
+    $('agFrontier').textContent = state.frontier_count;
+    $('agUnsafe').textContent = state.unsafe_count;
+  }
+
+  function renderKB(state) {
+    $('kbBox').textContent = (state.kb_recent || []).join('\n') || '—';
+  }
+
+  function renderProbability(state) {
+    const ring = document.querySelector('.prob-ring');
+    const val = $('probPercent');
+    if (!state || state.done) {
+      if (state?.agent_status === 'won') { val.textContent = '100%'; ring.style.setProperty('--prob', '100%'); }
+      else if (state?.agent_status === 'dead') { val.textContent = '0%'; ring.style.setProperty('--prob', '0%'); }
+      else { val.textContent = '--%'; ring.style.setProperty('--prob', '0%'); }
+      return;
     }
-    return {
-      rows:this.rows,cols:this.cols,grid:gridRep,
-      agent_row:this.agent.r,agent_col:this.agent.c,
-      agent_status:this.won?"won":(!this.alive?"dead":(this.stuck?"stuck":"active")),
-      moves:this.moves,inf_steps:this.infSteps,safe_count:this.safeSet.size,
-      kb_size:this.kb.size,current_percepts:this.getPercepts(),
-      visited_count:this.visitedSet.size,frontier_count:fc,unsafe_count:this.unsafeSet.size,
-      done:(this.won||!this.alive||this.stuck),kb_recent:Array.from(this.kb).slice(-3)
-    };
+    const total = state.rows * state.cols;
+    const safe = state.safe_count || 0;
+    const visited = state.visited_count || 0;
+    const prob = Math.min(95, Math.floor(((safe + 1) / Math.max(1, total - visited)) * 60 + 30));
+    val.textContent = prob + '%';
+    ring.style.setProperty('--prob', prob + '%');
   }
-}
 
-// UI Controller
-let game=null, autoActive=false, stepRunning=false;
-
-function addLog(level,msg){
-  let logDiv=document.getElementById('logBody');
-  let entry=document.createElement('div'); entry.className=`log-entry ${level}`;
-  let time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  entry.innerHTML=`<span class="log-time">${time}</span><span class="log-msg">${msg}</span>`;
-  logDiv.appendChild(entry); entry.scrollIntoView({block:'nearest'});
-  while(logDiv.children.length>200) logDiv.removeChild(logDiv.firstChild);
-}
-
-function renderUI(){
-  if(!game) return;
-  let s=game.getState();
-  let gridDiv=document.getElementById('game-grid');
-  gridDiv.style.gridTemplateColumns=`repeat(${s.cols}, var(--cell))`;
-  gridDiv.innerHTML='';
-  for(let i=0;i<s.rows;i++) for(let j=0;j<s.cols;j++){
-    let cell=s.grid[i][j];
-    let cls='cell',icon='·',label='';
-    if(cell.is_agent){ cls+=' cell-agent'; icon='🤖'; label='AG'; }
-    else if(cell.is_visited&&cell.is_unsafe){ cls+=' cell-pit'; icon='🕳️'; }
-    else if(cell.has_pit&&s.done){ cls+=' cell-pit'; icon='🕳️'; }
-    else if(cell.has_wumpus&&s.done){ cls+=' cell-wumpus'; icon='👹'; }
-    else if(cell.has_gold&&s.done){ cls+=' cell-gold'; icon='💰'; }
-    else if(cell.is_visited){ cls+=' cell-visited'; icon='✓'; }
-    else if(cell.is_unsafe){ cls+=' cell-danger'; icon='⚠️'; }
-    else if(cell.is_safe){ cls+=' cell-safe-inferred'; icon='◈'; }
-    else cls+=' cell-unknown';
-    let perc='';
-    if(cell.is_visited&&!cell.is_agent){
-      if(cell.breeze) perc+='💨'; if(cell.stench) perc+='🌫️'; if(cell.glitter) perc+='✨';
-    }
-    let div=document.createElement('div'); div.className=cls;
-    div.innerHTML=`<span class="cell-coord">${cell.r},${cell.c}</span><span class="cell-icon">${icon}</span>${label?`<span class="cell-label">${label}</span>`:''}${perc?`<div class="cell-percepts">${perc}</div>`:''}`;
-    gridDiv.appendChild(div);
+  function updateNavStatus(status, color) {
+    $('navStatus').textContent = status;
+    const dot = document.querySelector('.stat-dot');
+    if (dot) dot.style.background = color;
   }
-  document.getElementById('infSteps').innerText=s.inf_steps;
-  document.getElementById('moveCount').innerText=s.moves;
-  document.getElementById('safeCount').innerText=s.safe_count;
-  document.getElementById('kbSize').innerText=s.kb_size;
-  let p=s.current_percepts;
-  let percDiv=document.getElementById('perceptRow');
-  percDiv.innerHTML='';
-  if(!p.breeze&&!p.stench&&!p.glitter) percDiv.innerHTML='<span>— no percept —</span>';
-  else{ if(p.breeze) percDiv.innerHTML+='💨 BREEZE '; if(p.stench) percDiv.innerHTML+='👃 STENCH '; if(p.glitter) percDiv.innerHTML+='✨ GLITTER'; }
-  document.getElementById('agentStatusBar').innerHTML=`📍 (${s.agent_row},${s.agent_col}) · ${s.agent_status.toUpperCase()} · moves:${s.moves}`;
-  document.getElementById('kbPreview').innerText=(s.kb_recent||[]).join('\n')||'—';
-}
 
-async function stepGame(){
-  if(!game||stepRunning) return;
-  let s=game.getState();
-  if(s.done){ if(autoActive) stopAuto(); return; }
-  stepRunning=true;
-  let result=game.step();
-  if(result.type==='move') addLog('move',`→ moved to (${result.r},${result.c})`);
-  else if(result.type==='died'){ addLog('danger','☠️ Died'); stopAuto(); }
-  else if(result.type==='won'){ addLog('win','✨ GOLD FOUND! Victory! ✨'); stopAuto(); }
-  else if(result.type==='stuck'){ addLog('danger','⚠️ STUCK'); stopAuto(); }
-  renderUI();
-  stepRunning=false;
-  if(autoActive && !game.getState().done){
-    setTimeout(()=>{ if(autoActive) stepGame(); }, parseInt(document.getElementById('speedInput').value));
+  function updateNavCounts(state) {
+    $('navMoves').textContent = state.moves + ' moves';
+    $('navKB').textContent = state.kb_size + ' clauses';
   }
-}
 
-function newGame(){
-  stopAuto();
-  let rows=Math.min(6,Math.max(3,parseInt(document.getElementById('rowsInput').value)));
-  let cols=Math.min(6,Math.max(3,parseInt(document.getElementById('colsInput').value)));
-  let pits=Math.min(rows*cols-3,Math.max(1,parseInt(document.getElementById('pitsInput').value)));
-  game=new WumpusWorld(rows,cols,pits);
-  addLog('info',`🌲 New game ${rows}x${cols}, pits:${pits}`);
-  renderUI();
-  document.getElementById('autoBtn').disabled=false;
-  document.getElementById('stepBtn').disabled=false;
-}
+  // ── Log ──
+  function renderLogEntries(entries) {
+    if (!entries || !entries.length) return;
+    const newEntries = entries.slice(logCounter - entries.length);
+    newEntries.forEach(e => addLog(e.msg, e.level));
+    logCounter = entries.length;
+  }
 
-function toggleAuto(){ autoActive?stopAuto():startAuto(); }
-function startAuto(){
-  if(!game||game.getState().done) return;
-  autoActive=true;
-  let btn=document.getElementById('autoBtn');
-  btn.innerText='⏸ PAUSE'; btn.classList.add('btn-pause');
-  stepGame();
-}
-function stopAuto(){
-  autoActive=false;
-  let btn=document.getElementById('autoBtn');
-  if(btn){ btn.innerText='▶ AUTO'; btn.classList.remove('btn-pause'); }
-}
+  function addLog(msg, level = 'info') {
+    const body = $('logBody');
+    const div = document.createElement('div');
+    div.className = `log-entry ${level}`;
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    div.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg">${esc(msg)}</span>`;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    while (body.children.length > 200) body.removeChild(body.firstChild);
+  }
 
-document.getElementById('newGameBtn').onclick=newGame;
-document.getElementById('autoBtn').onclick=toggleAuto;
-document.getElementById('stepBtn').onclick=()=>{ if(!autoActive&&game&&!game.getState().done) stepGame(); };
-document.getElementById('clearLogBtn').onclick=()=>{ document.getElementById('logBody').innerHTML=''; addLog('info','Log cleared'); };
-window.onload=newGame;
+  function clearLog() { $('logBody').innerHTML = ''; logCounter = 0; }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function showBanner(msg, type) {
+    const b = $('banner');
+    b.textContent = msg;
+    b.className = `banner show ${type}`;
+  }
+
+  function hideBanner() { $('banner').className = 'banner'; }
+
+  // ── Speed Slider ──
+  $('speedSlider').addEventListener('input', function() {
+    $('speedVal').textContent = this.value + 'ms';
+    if (isPlaying) { stopAuto(); startAuto(); }
+  });
+
+  // ── Keyboard Shortcuts ──
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'n' || e.key === 'N') newGame();
+    if (e.key === ' ') { e.preventDefault(); if (gameState && !gameState.done) toggleAuto(); }
+    if (e.key === 's' || e.key === 'S') stepOnce();
+  });
+
+  // ── Boot ──
+  window.addEventListener('load', () => {
+    addLog('╔══════════════════════════════════════╗', 'info');
+    addLog('║  WUMPUS WORLD · KB AGENT v2.0      ║', 'info');
+    addLog('║  Resolution Refutation Engine      ║', 'info');
+    addLog('╚══════════════════════════════════════╝', 'info');
+    addLog('Press [N] New Game | [Space] Auto | [S] Step', 'info');
+    updateNavStatus('READY', '#6b7280');
+  });
 </script>
 </body>
 </html>
