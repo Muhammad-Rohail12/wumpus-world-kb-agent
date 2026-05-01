@@ -5,915 +5,453 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>Wumpus World · KB Agent · Amber Crypt</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-
 <style>
-/* ============================================================
-   DESIGN SYSTEM — DARK BROWN / EARTHEN TOMB THEME
-   (unchanged, only added responsive stacking)
-   ============================================================ */
-
-:root {
-  --bg-0:    #0a0502;
-  --bg-1:    #120a05;
-  --bg-2:    #1b110a;
-  --bg-3:    #251a10;
-  --surface: #2f2217;
-  --b1: rgba(200, 150, 100, 0.12);
-  --b2: rgba(200, 150, 100, 0.2);
-  --b3: rgba(200, 150, 100, 0.3);
-  --cyan:   #e0a46b;
-  --blue:   #c9824b;
-  --green:  #b59a6b;
-  --amber:  #f5bc70;
-  --red:    #c45a42;
-  --purple: #b58a6b;
-  --pink:   #c99e7a;
-  --text-1: #f2e2cc;
-  --text-2: #cbad8a;
-  --text-3: #8a6e4e;
-  --mono: 'JetBrains Mono', 'Courier New', monospace;
-  --ui:   'DM Sans', sans-serif;
-  --head: 'Syne', sans-serif;
-  --cell: 78px;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; }
-
-body {
-  font-family: var(--ui);
-  background: var(--bg-0);
-  color: var(--text-1);
-  height: 100vh;
-  display: grid;
-  grid-template-rows: 56px 1fr;
-  overflow: hidden;
-}
-
-/* ── HEADER (unchanged) ─────────────────────────────────── */
-.topbar {
-  background: var(--bg-1);
-  border-bottom: 1px solid var(--b2);
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  gap: 16px;
-  position: relative;
-}
-.topbar::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--cyan) 30%, var(--amber) 70%, transparent);
-  opacity: 0.5;
-}
-.logo {
-  font-family: var(--head);
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: 1px;
-  background: linear-gradient(135deg, var(--cyan), var(--amber));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  white-space: nowrap;
-}
-.divider { width: 1px; height: 22px; background: var(--b2); }
-.topbar-sub {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  color: var(--text-3);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-.badge {
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  padding: 3px 9px;
-  border-radius: 100px;
-  border: 1px solid;
-  letter-spacing: 0.5px;
-}
-.b-cyan  { color: var(--cyan);  border-color: rgba(224,164,107,0.3); background: rgba(224,164,107,0.07); }
-.b-green { color: var(--green); border-color: rgba(181,154,107,0.3); background: rgba(181,154,107,0.07); }
-.b-amber { color: var(--amber); border-color: rgba(245,188,112,0.3);  background: rgba(245,188,112,0.07);  }
-.ml-auto { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-
-/* ── MAIN LAYOUT (modified: left panel now contains log) ── */
-.layout {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  overflow: hidden;
-  min-height: 0;
-}
-
-/* LEFT PANEL: Grid + Legend + Log (now log is here) */
-.left-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 24px;
-  overflow-y: auto;  /* allows scrolling if needed */
-  background:
-    radial-gradient(ellipse 60% 50% at 30% 60%, rgba(224,164,107,0.04) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 50% at 70% 30%, rgba(245,188,112,0.02) 0%, transparent 70%),
-    var(--bg-0);
-}
-
-/* Status Banner */
-.status-banner {
-  display: none;
-  padding: 12px 32px;
-  border-radius: 8px;
-  font-family: var(--head);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-align: center;
-  animation: slideDown 0.4s cubic-bezier(0.34,1.56,0.64,1);
-}
-.status-banner.show { display: block; }
-.status-banner.win {
-  background: rgba(181,154,107,0.15);
-  border: 1px solid rgba(181,154,107,0.5);
-  color: var(--green);
-  box-shadow: 0 0 40px rgba(181,154,107,0.2), 0 4px 20px rgba(0,0,0,0.4);
-}
-.status-banner.lose {
-  background: rgba(196,90,66,0.15);
-  border: 1px solid rgba(196,90,66,0.5);
-  color: var(--red);
-  box-shadow: 0 0 40px rgba(196,90,66,0.2), 0 4px 20px rgba(0,0,0,0.4);
-}
-.status-banner.stuck {
-  background: rgba(245,188,112,0.15);
-  border: 1px solid rgba(245,188,112,0.5);
-  color: var(--amber);
-}
-
-/* Grid */
-.grid-container-wrap {
-  background: rgba(0,0,0,0.25);
-  border: 1px solid var(--b2);
-  border-radius: 14px;
-  padding: 10px;
-  box-shadow: 0 0 0 1px var(--b1), 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 var(--b2);
-}
-#game-grid {
-  display: grid;
-  gap: 6px;
-}
-.cell {
-  width: var(--cell);
-  height: var(--cell);
-  border-radius: 8px;
-  border: 1px solid transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: default;
-  overflow: hidden;
-}
-.cell-coord {
-  position: absolute;
-  top: 4px; left: 5px;
-  font-family: var(--mono);
-  font-size: 0.38rem;
-  color: rgba(230,190,140,0.3);
-  z-index: 2;
-}
-.cell-icon { font-size: 1.9rem; line-height: 1; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
-.cell-label {
-  font-family: var(--mono);
-  font-size: 0.42rem;
-  letter-spacing: 0.5px;
-  margin-top: 2px;
-  z-index: 2;
-  opacity: 0.9;
-}
-.cell-percepts {
-  position: absolute;
-  bottom: 3px; right: 3px;
-  display: flex; gap: 1px;
-  font-size: 0.6rem;
-  z-index: 2;
-}
-.cell-unknown { background: #1c140c; border-color: rgba(200,150,100,0.15); }
-.cell-unknown:hover { border-color: var(--b3); }
-.cell-visited { background: #2a241a; border-color: rgba(181,154,107,0.3); box-shadow: inset 0 0 10px rgba(181,154,107,0.08); }
-.cell-safe-inferred { background: #2a2a1c; border-color: rgba(181,154,107,0.25); border-style: dashed; }
-.cell-agent {
-  background: linear-gradient(135deg, #3f2c1c, #2b1f13);
-  border-color: var(--cyan);
-  border-width: 2px;
-  box-shadow: 0 0 20px rgba(224,164,107,0.4), inset 0 0 15px rgba(224,164,107,0.1);
-  animation: agentGlow 2.5s ease-in-out infinite;
-}
-.cell-pit { background: #2a1410; border-color: var(--red); border-width: 2px; box-shadow: 0 0 15px rgba(196,90,66,0.3), inset 0 0 10px rgba(196,90,66,0.1); }
-.cell-wumpus { background: #251a1f; border-color: var(--purple); border-width: 2px; box-shadow: 0 0 15px rgba(181,138,107,0.3), inset 0 0 10px rgba(181,138,107,0.1); }
-.cell-gold { background: #2f2612; border-color: var(--amber); box-shadow: 0 0 15px rgba(245,188,112,0.25), inset 0 0 10px rgba(245,188,112,0.08); }
-.cell-danger { background: #2a1f12; border-color: rgba(245,188,112,0.35); border-style: dashed; }
-.cell-confirmed-unsafe { background: #2a1812; border-color: rgba(196,90,66,0.5); }
-@keyframes agentGlow {
-  0%,100% { box-shadow: 0 0 20px rgba(224,164,107,0.35), inset 0 0 15px rgba(224,164,107,0.08); }
-  50%      { box-shadow: 0 0 35px rgba(224,164,107,0.55),  inset 0 0 20px rgba(224,164,107,0.15); }
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
-  to   { opacity: 1; transform: none; }
-}
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  justify-content: center;
-}
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  color: var(--text-2);
-}
-.legend-swatch {
-  width: 14px; height: 14px;
-  border-radius: 3px;
-  border: 1px solid;
-  flex-shrink: 0;
-}
-
-/* ── LOG SECTION (moved from right panel to left) ───────── */
-.log-section {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 200px;
-  height: auto;
-  background: var(--bg-2);
-  border-radius: 12px;
-  border: 1px solid var(--b2);
-  margin-top: 8px;
-}
-.log-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px 8px;
-  border-bottom: 1px solid var(--b1);
-  flex-shrink: 0;
-}
-.log-title {
-  font-family: var(--mono);
-  font-size: 0.55rem;
-  letter-spacing: 2px;
-  color: var(--cyan);
-  text-transform: uppercase;
-}
-.log-clear {
-  font-family: var(--mono);
-  font-size: 0.52rem;
-  color: var(--text-3);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-.log-clear:hover { color: var(--red); }
-.log-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 14px;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  line-height: 1.7;
-  max-height: 280px;
-}
-.log-entry { padding: 1px 0; display: flex; align-items: baseline; gap: 6px; }
-.log-time  { color: var(--text-3); font-size: 0.5rem; flex-shrink: 0; }
-.log-msg   { flex: 1; }
-.log-entry.info    .log-msg { color: var(--cyan); }
-.log-entry.percept .log-msg { color: #e0b07a; }
-.log-entry.move    .log-msg { color: var(--green); }
-.log-entry.safe    .log-msg { color: rgba(181,154,107,0.8); }
-.log-entry.proof   .log-msg { color: #dba968; }
-.log-entry.danger  .log-msg { color: var(--red); }
-.log-entry.warn    .log-msg { color: var(--amber); }
-.log-entry.error   .log-msg { color: var(--red); font-weight: 600; }
-.log-entry.win     .log-msg { color: var(--amber); font-weight: 600; }
-.log-entry.kb      .log-msg { color: rgba(181,138,107,0.9); }
-
-/* ── RIGHT PANEL (unchanged except log removed) ─────────── */
-.right-panel {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-1);
-  border-left: 1px solid var(--b2);
-  overflow-y: auto;
-}
-.pane {
-  padding: 16px;
-  border-bottom: 1px solid var(--b1);
-  flex-shrink: 0;
-}
-.pane-title {
-  font-family: var(--mono);
-  font-size: 0.55rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--cyan);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.pane-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--b2), transparent);
-}
-.config-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.field label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 0.52rem;
-  color: var(--text-3);
-  letter-spacing: 1px;
-  margin-bottom: 4px;
-}
-.field input {
-  width: 100%;
-  background: var(--bg-0);
-  border: 1px solid var(--b2);
-  color: var(--text-1);
-  font-family: var(--mono);
-  font-size: 0.95rem;
-  padding: 8px 10px;
-  border-radius: 6px;
-  outline: none;
-}
-.field input:focus {
-  border-color: var(--cyan);
-  box-shadow: 0 0 0 2px rgba(224,164,107,0.2);
-}
-.btns { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.5px;
-  padding: 9px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid;
-  background: transparent;
-  transition: all 0.15s;
-  flex: 1;
-}
-.btn:disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
-.btn-new   { border-color: var(--cyan);  color: var(--cyan);  }
-.btn-new:hover { background: rgba(224,164,107,0.12); box-shadow: 0 0 20px rgba(224,164,107,0.2); }
-.btn-auto  { border-color: var(--green); color: var(--green); }
-.btn-auto:hover { background: rgba(181,154,107,0.12); box-shadow: 0 0 20px rgba(181,154,107,0.18); }
-.btn-pause { border-color: var(--amber); color: var(--amber); }
-.btn-step  { border-color: var(--b3); color: var(--text-2); }
-.btn-step:hover { border-color: var(--blue); color: var(--blue); }
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.metric-card {
-  background: var(--bg-2);
-  border: 1px solid var(--b1);
-  border-radius: 8px;
-  padding: 12px;
-  position: relative;
-  overflow: hidden;
-}
-.metric-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 2px;
-  border-radius: 8px 8px 0 0;
-}
-.mc-inf::before    { background: var(--cyan); }
-.mc-moves::before  { background: var(--green); }
-.mc-safe::before   { background: var(--amber); }
-.mc-kb::before     { background: var(--purple); }
-.metric-val {
-  font-family: var(--head);
-  font-size: 1.8rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.metric-val.c-cyan   { color: var(--cyan);   text-shadow: 0 0 20px rgba(224,164,107,0.3); }
-.metric-val.c-green  { color: var(--green);  text-shadow: 0 0 20px rgba(181,154,107,0.3); }
-.metric-val.c-amber  { color: var(--amber);  text-shadow: 0 0 20px rgba(245,188,112,0.3); }
-.metric-val.c-purple { color: var(--purple); text-shadow: 0 0 20px rgba(181,138,107,0.3); }
-.metric-label {
-  font-family: var(--mono);
-  font-size: 0.5rem;
-  color: var(--text-3);
-  letter-spacing: 0.8px;
-  margin-top: 5px;
-  text-transform: uppercase;
-}
-
-.percept-row { display: flex; gap: 8px; flex-wrap: wrap; min-height: 30px; align-items: center; }
-.percept-chip {
-  font-family: var(--mono);
-  font-size: 0.62rem;
-  padding: 5px 12px;
-  border-radius: 100px;
-  border: 1px solid;
-  font-weight: 400;
-}
-.pc-breeze  { color: var(--cyan);  border-color: rgba(224,164,107,0.4); background: rgba(224,164,107,0.08); }
-.pc-stench  { color: var(--purple);border-color: rgba(181,138,107,0.4); background: rgba(181,138,107,0.08); }
-.pc-glitter { color: var(--amber); border-color: rgba(245,188,112,0.4); background: rgba(245,188,112,0.08); }
-.pc-none    { color: var(--text-3); border-color: var(--b2); }
-
-.agent-status-bar {
-  background: var(--bg-2);
-  border: 1px solid var(--b2);
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--cyan);
-  margin-bottom: 10px;
-}
-.agent-mini-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-.mini-stat {
-  background: var(--bg-0);
-  border: 1px solid var(--b1);
-  border-radius: 5px;
-  padding: 7px 10px;
-  text-align: center;
-}
-.mini-stat-val {
-  font-family: var(--head);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-1);
-}
-.mini-stat-lbl {
-  font-family: var(--mono);
-  font-size: 0.45rem;
-  color: var(--text-3);
-  letter-spacing: 0.5px;
-  margin-top: 2px;
-  text-transform: uppercase;
-}
-.kb-preview {
-  background: var(--bg-0);
-  border: 1px solid var(--b1);
-  border-radius: 6px;
-  padding: 10px;
-  max-height: 72px;
-  overflow-y: auto;
-  font-family: var(--mono);
-  font-size: 0.55rem;
-  color: rgba(181,138,107,0.8);
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-.speed-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-.speed-label {
-  font-family: var(--mono);
-  font-size: 0.55rem;
-  color: var(--text-3);
-  white-space: nowrap;
-}
-input[type=range] {
-  flex: 1;
-  -webkit-appearance: none;
-  height: 3px;
-  background: var(--b2);
-  border-radius: 3px;
-  outline: none;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px; height: 12px;
-  background: var(--cyan);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 0 6px rgba(224,164,107,0.6);
-}
-.overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(10,5,2,0.9);
-  z-index: 100;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  color: var(--cyan);
-  letter-spacing: 2px;
-}
-.overlay.show { display: flex; }
-
-/* ── RESPONSIVE: stack columns on narrow screens ───────── */
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-  }
-  .right-panel {
-    border-left: none;
-    border-top: 1px solid var(--b2);
-    max-height: 50vh;
-  }
-  .left-panel {
-    max-height: 50vh;
-    overflow-y: auto;
-  }
-  .log-body {
-    max-height: 200px;
-  }
+  /* ========== DARK BROWN THEME ========== */
   :root {
-    --cell: min(12vw, 65px);
+    --bg-0: #0a0502; --bg-1: #120a05; --bg-2: #1b110a; --bg-3: #251a10;
+    --b1: rgba(200,150,100,0.12); --b2: rgba(200,150,100,0.2);
+    --cyan: #e0a46b; --green: #b59a6b; --amber: #f5bc70; --red: #c45a42;
+    --purple: #b58a6b; --text-1: #f2e2cc; --text-2: #cbad8a; --text-3: #8a6e4e;
+    --mono: 'JetBrains Mono', monospace; --ui: 'DM Sans', sans-serif; --head: 'Syne', sans-serif;
+    --cell: 78px;
   }
-}
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--ui); background: var(--bg-0); color: var(--text-1);
+    height: 100vh; display: grid; grid-template-rows: 56px 1fr; overflow: hidden;
+  }
+  .topbar {
+    background: var(--bg-1); border-bottom: 1px solid var(--b2);
+    display: flex; align-items: center; padding: 0 24px; gap: 16px;
+  }
+  .logo {
+    font-family: var(--head); font-size: 1.05rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--cyan), var(--amber));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .badge {
+    font-family: var(--mono); font-size: 0.58rem; padding: 3px 9px;
+    border-radius: 100px; border: 1px solid;
+  }
+  .b-cyan { color: var(--cyan); border-color: rgba(224,164,107,0.3); }
+  .ml-auto { margin-left: auto; display: flex; gap: 10px; }
+  .layout { display: grid; grid-template-columns: 1fr 360px; overflow: hidden; }
+  .left-panel {
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+    padding: 24px; overflow-y: auto;
+    background: radial-gradient(ellipse at 30% 60%, rgba(224,164,107,0.04), transparent);
+  }
+  .grid-container-wrap {
+    background: rgba(0,0,0,0.25); border: 1px solid var(--b2); border-radius: 14px; padding: 10px;
+  }
+  #game-grid { display: grid; gap: 6px; }
+  .cell {
+    width: var(--cell); height: var(--cell); border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; background: #1c140c; border: 1px solid rgba(200,150,100,0.15);
+  }
+  .cell-agent { background: linear-gradient(135deg, #3f2c1c, #2b1f13); border: 2px solid var(--cyan); }
+  .cell-visited { background: #2a241a; border-color: #b59a6b; }
+  .cell-safe-inferred { background: #2a2a1c; border: 1px dashed #b59a6b; }
+  .cell-pit { background: #2a1410; border-color: var(--red); }
+  .cell-wumpus { background: #251a1f; border-color: #b58a6b; }
+  .cell-gold { background: #2f2612; border-color: var(--amber); }
+  .cell-danger { background: #2a1f12; border: 1px dashed #f5bc70; }
+  .cell-coord { position: absolute; top: 2px; left: 4px; font-size: 0.35rem; color: #8a6e4e; }
+  .cell-icon { font-size: 1.5rem; }
+  .cell-label { font-size: 0.4rem; margin-top: 2px; }
+  .cell-percepts { position: absolute; bottom: 2px; right: 4px; font-size: 0.55rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.6rem; }
+  .log-section {
+    width: 100%; background: var(--bg-2); border-radius: 12px; border: 1px solid var(--b2);
+    margin-top: 8px; display: flex; flex-direction: column;
+  }
+  .log-header { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--b1); }
+  .log-title { font-family: var(--mono); font-size: 0.55rem; color: var(--cyan); }
+  .log-clear { background: none; border: none; color: #8a6e4e; cursor: pointer; }
+  .log-body { height: 200px; overflow-y: auto; padding: 10px; font-family: var(--mono); font-size: 0.6rem; }
+  .log-entry { display: flex; gap: 8px; padding: 2px 0; }
+  .log-time { color: #8a6e4e; }
+  .log-entry.move .log-msg { color: #b59a6b; }
+  .log-entry.win .log-msg { color: #f5bc70; font-weight: bold; }
+  .right-panel { background: var(--bg-1); border-left: 1px solid var(--b2); overflow-y: auto; }
+  .pane { padding: 16px; border-bottom: 1px solid var(--b1); }
+  .pane-title { font-family: var(--mono); font-size: 0.55rem; color: var(--cyan); margin-bottom: 12px; }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .field input { width: 100%; background: var(--bg-0); border: 1px solid var(--b2); color: var(--text-1); padding: 6px; border-radius: 6px; }
+  .btns { display: flex; gap: 8px; }
+  .btn { font-family: var(--mono); padding: 8px 12px; border-radius: 6px; cursor: pointer; border: 1px solid; background: transparent; flex: 1; }
+  .btn-new { border-color: var(--cyan); color: var(--cyan); }
+  .btn-auto { border-color: var(--green); color: var(--green); }
+  .btn-pause { border-color: var(--amber); color: var(--amber); }
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric-card { background: var(--bg-2); border-radius: 8px; padding: 8px; text-align: center; }
+  .metric-val { font-family: var(--head); font-size: 1.5rem; }
+  .percept-row { display: flex; gap: 8px; margin: 8px 0; }
+  .status-bar { background: var(--bg-0); border-radius: 8px; padding: 8px; font-family: monospace; margin: 8px 0; }
+  .kb-preview { background: var(--bg-0); border-radius: 6px; padding: 8px; font-family: monospace; font-size: 0.55rem; max-height: 60px; overflow: auto; }
+  @media (max-width: 700px) {
+    .layout { grid-template-columns: 1fr; }
+    :root { --cell: 60px; }
+  }
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <div class="logo">⬡ WUMPUS WORLD</div>
-  <div class="divider"></div>
-  <div class="topbar-sub">Knowledge-Based Agent · Propositional Logic</div>
   <div class="ml-auto">
-    <span class="badge b-cyan">CNF Resolution</span>
-    <span class="badge b-green">Dynamic Percepts</span>
-    <span class="badge b-amber">FAST-NUCES AI Lab</span>
+    <span class="badge b-cyan">Knowledge-Based Agent</span>
   </div>
 </div>
 
 <div class="layout">
-
-  <!-- LEFT PANEL: now includes the log section -->
   <div class="left-panel">
     <div id="status-banner" class="status-banner"></div>
     <div class="grid-container-wrap">
       <div id="game-grid"></div>
     </div>
     <div class="legend">
-      <div class="legend-item"><div class="legend-swatch" style="background:#3f2c1c;border-color:#e0a46b"></div> Agent 🤖</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#2a241a;border-color:#b59a6b"></div> Visited Safe ✓</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#2a2a1c;border-color:#b59a6b;border-style:dashed"></div> Inferred Safe ◈</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#1c140c;border-color:rgba(200,150,100,0.3)"></div> Unknown ·</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#2a1f12;border-color:#f5bc70;border-style:dashed"></div> Suspected ⚠</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#2a1410;border-color:#c45a42"></div> Pit 🕳️</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#251a1f;border-color:#b58a6b"></div> Wumpus 👹</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#2f2612;border-color:#f5bc70"></div> Gold 💰</div>
+      <div class="legend-item">🤖 Agent &nbsp; ✓ Visited &nbsp; ◈ Safe &nbsp; 🕳️ Pit &nbsp; 👹 Wumpus &nbsp; 💰 Gold</div>
     </div>
-
-    <!-- MOVED LOG SECTION (from right panel to left) -->
     <div class="log-section">
-      <div class="log-header">
-        <span class="log-title">Inference Log</span>
-        <button class="log-clear" onclick="clearLog()">clear</button>
-      </div>
-      <div class="log-body" id="log-body"></div>
+      <div class="log-header"><span class="log-title">📜 Move Log</span><button class="log-clear" id="clearLogBtn">clear</button></div>
+      <div class="log-body" id="logBody"></div>
     </div>
   </div>
 
-  <!-- RIGHT PANEL (log removed) -->
   <div class="right-panel">
     <div class="pane">
-      <div class="pane-title">Configuration</div>
+      <div class="pane-title">⚙️ Config</div>
       <div class="config-grid">
-        <div class="field"><label>ROWS</label><input type="number" id="inp-rows" value="4" min="3" max="8"></div>
-        <div class="field"><label>COLS</label><input type="number" id="inp-cols" value="4" min="3" max="8"></div>
-        <div class="field"><label>PIT COUNT</label><input type="number" id="inp-pits" value="3" min="1" max="10"></div>
-        <div class="field"><label>SPEED</label><input type="number" id="inp-speed" value="700" min="100" max="3000" step="100"></div>
+        <div class="field"><label>ROWS</label><input type="number" id="rowsInput" value="4" min="3" max="6"></div>
+        <div class="field"><label>COLS</label><input type="number" id="colsInput" value="4" min="3" max="6"></div>
+        <div class="field"><label>PITS</label><input type="number" id="pitsInput" value="3" min="1" max="6"></div>
+        <div class="field"><label>SPEED</label><input type="number" id="speedInput" value="600" min="200" max="1500"></div>
       </div>
       <div class="btns">
-        <button class="btn btn-new" onclick="newGame()">New Game</button>
-        <button class="btn btn-auto" id="btn-auto" onclick="toggleAuto()" disabled>▶ Auto</button>
-        <button class="btn btn-step" id="btn-step" onclick="stepOnce()" disabled>Step →</button>
+        <button class="btn btn-new" id="newGameBtn">🌲 NEW</button>
+        <button class="btn btn-auto" id="autoBtn" disabled>▶ AUTO</button>
+        <button class="btn btn-step" id="stepBtn" disabled>⟳ STEP</button>
       </div>
     </div>
     <div class="pane">
-      <div class="pane-title">Real-Time Metrics</div>
+      <div class="pane-title">📊 Metrics</div>
       <div class="metrics-grid">
-        <div class="metric-card mc-inf"><div class="metric-val c-cyan" id="m-inf">0</div><div class="metric-label">Inference Steps</div></div>
-        <div class="metric-card mc-moves"><div class="metric-val c-green" id="m-moves">0</div><div class="metric-label">Agent Moves</div></div>
-        <div class="metric-card mc-safe"><div class="metric-val c-amber" id="m-safe">0</div><div class="metric-label">Safe Cells Known</div></div>
-        <div class="metric-card mc-kb"><div class="metric-val c-purple" id="m-kb">0</div><div class="metric-label">KB Clauses</div></div>
+        <div class="metric-card"><div class="metric-val" id="infSteps">0</div><div>Inf. Steps</div></div>
+        <div class="metric-card"><div class="metric-val" id="moveCount">0</div><div>Moves</div></div>
+        <div class="metric-card"><div class="metric-val" id="safeCount">0</div><div>Safe</div></div>
+        <div class="metric-card"><div class="metric-val" id="kbSize">0</div><div>KB</div></div>
       </div>
     </div>
     <div class="pane">
-      <div class="pane-title">Active Percepts</div>
-      <div class="percept-row" id="percept-row"><span class="percept-chip pc-none">NO GAME ACTIVE</span></div>
-    </div>
-    <div class="pane">
-      <div class="pane-title">Agent State</div>
-      <div class="agent-status-bar" id="agent-status">POSITION: — &nbsp;|&nbsp; STATUS: IDLE</div>
-      <div class="agent-mini-stats">
-        <div class="mini-stat"><div class="mini-stat-val" id="a-visited">0</div><div class="mini-stat-lbl">Visited</div></div>
-        <div class="mini-stat"><div class="mini-stat-val" id="a-frontier">0</div><div class="mini-stat-lbl">Frontier</div></div>
-        <div class="mini-stat"><div class="mini-stat-val" id="a-unsafe">0</div><div class="mini-stat-lbl">Unsafe</div></div>
-      </div>
-    </div>
-    <div class="pane">
-      <div class="pane-title">Recent KB Clauses</div>
-      <div class="kb-preview" id="kb-preview">—</div>
+      <div class="pane-title">👁️ Percepts</div>
+      <div class="percept-row" id="perceptRow">—</div>
+      <div class="status-bar" id="agentStatusBar"></div>
+      <div class="kb-preview" id="kbPreview">—</div>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="overlay">THINKING…</div>
-
 <script>
-// ── JavaScript (identical, unchanged) ────────────────────
-let isPlaying   = false;
-let autoTimer   = null;
-let stepCount   = 0;
-let lastState   = null;
-let logEntries  = 0;
+// ============================================================
+//  SELF-CONTAINED WUMPUS WORLD - NO BACKEND NEEDED
+// ============================================================
 
-async function apiPost(url, body = {}) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  return r.json();
-}
-async function apiGet(url) {
-  const r = await fetch(url);
-  return r.json();
-}
-
-async function newGame() {
-  stopAuto();
-  clearLog();
-  hideBanner();
-  const rows  = clamp(intVal('inp-rows'), 3, 8);
-  const cols  = clamp(intVal('inp-cols'), 3, 8);
-  const pits  = clamp(intVal('inp-pits'), 1, 10);
-  showOverlay(true);
-  const res = await apiPost('/api/new_game', { rows, cols, num_pits: pits });
-  showOverlay(false);
-  if (res.success) {
-    lastState = res.state;
-    setEnabled('btn-auto', true);
-    setEnabled('btn-step', true);
-    renderAll(res.state);
-    addLog('info', `═══ NEW GAME ${rows}×${cols} | Pits: ${pits} ═══`);
-    addLog('info', 'Agent initialized at (0,0). KB seeded.');
-    renderStepLog(res.state.step_log);
+class WumpusWorld {
+  constructor(rows, cols, numPits) {
+    this.rows = rows; this.cols = cols;
+    this.numPits = Math.min(numPits, rows*cols - 3);
+    this.grid = Array(rows).fill().map(() => Array(cols).fill().map(() => ({
+      hasPit: false, hasWumpus: false, hasGold: false, visited: false,
+      breeze: false, stench: false, glitter: false, safe: false, unsafe: false
+    })));
+    this.agent = { r: 0, c: 0 }; this.alive = true; this.won = false; this.stuck = false;
+    this.moves = 0; this.infSteps = 0;
+    this.kb = new Set(); this.safeSet = new Set(); this.unsafeSet = new Set(); this.visitedSet = new Set();
+    this.generateWorld(); this.initKB(); this.updatePercepts();
+    this.visitedSet.add("0,0"); this.safeSet.add("0,0"); this.addPerceptFact(0,0);
+    this.updateInferences();
   }
-}
-
-async function stepOnce() {
-  if (!lastState || lastState.done) return;
-  showOverlay(true);
-  const res = await apiPost('/api/step');
-  showOverlay(false);
-  if (res.success) {
-    lastState = res.state;
-    renderAll(res.state);
-    renderStepLog(res.state.step_log);
-    const r = res.result;
-    if (r && r.type === 'died')  showBanner(`☠ DIED — ${r.cause} at (${r.r},${r.c})`, 'lose');
-    if (r && r.type === 'won')   showBanner(`✦ GOLD FOUND! Mission complete in ${res.state.moves} moves`, 'win');
-    if (r && r.type === 'stuck') showBanner('⚠ AGENT STUCK — no provably safe path', 'stuck');
-    if (res.state.done) stopAuto();
+  
+  generateWorld() {
+    let free = [];
+    for(let i=0;i<this.rows;i++) for(let j=0;j<this.cols;j++) if(!(i===0&&j===0)) free.push([i,j]);
+    for(let i=free.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [free[i],free[j]]=[free[j],free[i]]; }
+    let idx=0;
+    let [wr,wc]=free[idx++]; this.grid[wr][wc].hasWumpus=true;
+    for(let p=0;p<this.numPits;p++){ let [pr,pc]=free[idx++]; this.grid[pr][pc].hasPit=true; }
+    let [gr,gc]=free[idx++];
+    while(this.grid[gr][gc].hasPit || this.grid[gr][gc].hasWumpus){ [gr,gc]=free[idx++]; }
+    this.grid[gr][gc].hasGold=true;
   }
-}
-
-function toggleAuto() { isPlaying ? stopAuto() : startAuto(); }
-function startAuto() {
-  if (!lastState || lastState.done) return;
-  isPlaying = true;
-  const btn = document.getElementById('btn-auto');
-  btn.textContent = '⏸ Pause';
-  btn.className   = 'btn btn-pause';
-  const ms = clamp(intVal('inp-speed'), 100, 5000);
-  autoTimer = setInterval(async () => {
-    if (!lastState || lastState.done) { stopAuto(); return; }
-    await stepOnce();
-  }, ms);
-}
-function stopAuto() {
-  isPlaying = false;
-  clearInterval(autoTimer);
-  const btn = document.getElementById('btn-auto');
-  if (btn) { btn.textContent = '▶ Auto'; btn.className = 'btn btn-auto'; }
-}
-
-function renderAll(state) {
-  renderGrid(state);
-  updateMetrics(state);
-  updatePercepts(state);
-  updateAgentStatus(state);
-  updateKBPreview(state);
-}
-
-function renderGrid(state) {
-  const grid   = document.getElementById('game-grid');
-  grid.style.gridTemplateColumns = `repeat(${state.cols}, var(--cell))`;
-  grid.innerHTML = '';
-  for (let r = 0; r < state.rows; r++) {
-    for (let c = 0; c < state.cols; c++) {
-      const cell = state.grid[r][c];
-      grid.appendChild(buildCell(cell, state));
+  
+  updatePercepts() {
+    for(let i=0;i<this.rows;i++) for(let j=0;j<this.cols;j++){
+      this.grid[i][j].breeze = this.hasAdjacentPit(i,j);
+      this.grid[i][j].stench = this.hasAdjacentWumpus(i,j);
+      if(this.grid[i][j].hasGold) this.grid[i][j].glitter=true;
     }
   }
-}
-function buildCell(cell, state) {
-  const div = document.createElement('div');
-  const isDead = state.agent_status === 'dead';
-  const isAgent = cell.is_agent;
-  let cls = 'cell cell-unknown';
-  let icon = '·';
-  let label = '';
-  if (isAgent && !isDead) {
-    cls = 'cell cell-agent';
-    icon = '🤖';
-    label = 'AGENT';
-  } else if (cell.is_visited && cell.is_unsafe) {
-    if (cell.has_pit)    { cls = 'cell cell-pit';    icon = '🕳️'; label = 'PIT';    }
-    else if (cell.has_wumpus) { cls = 'cell cell-wumpus'; icon = '👹'; label = 'WUMPUS'; }
-    else { cls = 'cell cell-confirmed-unsafe'; icon = '☠️'; label = 'FATAL'; }
-  } else if (cell.has_pit && state.done) {
-    cls = 'cell cell-pit'; icon = '🕳️'; label = 'PIT';
-  } else if (cell.has_wumpus && state.done) {
-    cls = 'cell cell-wumpus'; icon = '👹'; label = 'WUMPUS';
-  } else if (cell.has_gold && state.done) {
-    cls = 'cell cell-gold'; icon = '💰'; label = 'GOLD';
-  } else if (cell.is_visited) {
-    cls = 'cell cell-visited'; icon = '✓';
-  } else if (cell.is_unsafe) {
-    cls = 'cell cell-danger'; icon = '⚠️'; label = 'DANGER';
-  } else if (cell.is_safe) {
-    cls = 'cell cell-safe-inferred'; icon = '◈'; label = 'SAFE?';
+  
+  hasAdjacentPit(r,c){ const dirs=[[-1,0],[1,0],[0,-1],[0,1]]; for(let [dr,dc] of dirs){ let nr=r+dr,nc=c+dc; if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&this.grid[nr][nc].hasPit) return true; } return false; }
+  hasAdjacentWumpus(r,c){ const dirs=[[-1,0],[1,0],[0,-1],[0,1]]; for(let [dr,dc] of dirs){ let nr=r+dr,nc=c+dc; if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&this.grid[nr][nc].hasWumpus) return true; } return false; }
+  
+  initKB(){ this.kb.add("NoPit_0_0"); this.kb.add("NoWumpus_0_0"); }
+  
+  addPerceptFact(r,c){
+    let cell=this.grid[r][c];
+    if(cell.breeze) this.kb.add(`Breeze_${r}_${c}`); else this.kb.add(`~Breeze_${r}_${c}`);
+    if(cell.stench) this.kb.add(`Stench_${r}_${c}`); else this.kb.add(`~Stench_${r}_${c}`);
+    if(cell.glitter) this.kb.add(`Glitter_${r}_${c}`);
+    this.infSteps++;
   }
-  let percHTML = '';
-  if (cell.is_visited && !isAgent) {
-    if (cell.breeze)  percHTML += '<span title="Breeze">💨</span>';
-    if (cell.stench)  percHTML += '<span title="Stench">🟣</span>';
-    if (cell.glitter) percHTML += '<span title="Glitter">✨</span>';
+  
+  consistentWithKB(r,c,isPit){
+    let relevant=new Set(); relevant.add(`${r},${c}`);
+    for(let vis of this.visitedSet){
+      let [vr,vc]=vis.split(',').map(Number);
+      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        let nr=vr+dr,nc=vc+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)) relevant.add(`${nr},${nc}`);
+      }
+    }
+    let cells=Array.from(relevant).map(s=>s.split(',').map(Number));
+    if(cells.length>18) return true;
+    let n=cells.length;
+    for(let mask=0;mask<(1<<n);mask++){
+      let assign=new Map();
+      for(let i=0;i<n;i++){ let [rr,cc]=cells[i]; assign.set(`${rr},${cc}`, (mask>>i)&1); }
+      assign.set(`${r},${c}`, isPit?1:0);
+      let ok=true;
+      for(let fact of this.kb){
+        let neg=fact.startsWith("~");
+        let pred=neg?fact.slice(1):fact;
+        if(pred.startsWith("Breeze_")){
+          let m=pred.match(/Breeze_(\d+)_(\d+)/); if(!m) continue;
+          let rr=parseInt(m[1]),cc=parseInt(m[2]);
+          let breeze=false;
+          for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+            let nr=rr+dr,nc=cc+dc;
+            if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&assign.get(`${nr},${nc}`)===1) breeze=true;
+          }
+          if(neg?!breeze:breeze){ ok=false; break; }
+        }
+      }
+      for(let vis of this.visitedSet) if(assign.get(vis)===1){ ok=false; break; }
+      for(let uns of this.unsafeSet) if(assign.get(uns)===0){ ok=false; break; }
+      if(ok) return true;
+    }
+    return false;
   }
-  div.className = cls;
-  div.title = buildTooltip(cell);
-  div.innerHTML = `
-    <span class="cell-coord">(${cell.r},${cell.c})</span>
-    <span class="cell-icon">${icon}</span>
-    ${label ? `<span class="cell-label">${label}</span>` : ''}
-    ${percHTML ? `<div class="cell-percepts">${percHTML}</div>` : ''}
-  `;
-  return div;
-}
-function buildTooltip(cell) {
-  const parts = [`Cell (${cell.r},${cell.c})`];
-  if (cell.is_agent)   parts.push('AGENT HERE');
-  if (cell.is_visited) parts.push('VISITED');
-  if (cell.is_safe)    parts.push('KB: PROVEN SAFE');
-  if (cell.is_unsafe)  parts.push('CONFIRMED UNSAFE');
-  if (cell.has_pit)    parts.push('🕳️ PIT');
-  if (cell.has_wumpus) parts.push('👹 WUMPUS');
-  if (cell.has_gold)   parts.push('💰 GOLD');
-  if (cell.breeze)     parts.push('💨 Breeze');
-  if (cell.stench)     parts.push('🟣 Stench');
-  return parts.join(' | ');
+  
+  updateInferences(){
+    let frontier=new Set();
+    for(let vis of this.visitedSet){
+      let [vr,vc]=vis.split(',').map(Number);
+      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        let nr=vr+dr,nc=vc+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)) frontier.add(`${nr},${nc}`);
+      }
+    }
+    for(let f of frontier){
+      let [fr,fc]=f.split(',').map(Number);
+      let canPit=this.consistentWithKB(fr,fc,true);
+      let canSafe=this.consistentWithKB(fr,fc,false);
+      if(!canPit&&canSafe){ this.safeSet.add(f); this.grid[fr][fc].safe=true; }
+      else if(canPit&&!canSafe){ this.unsafeSet.add(f); this.grid[fr][fc].unsafe=true; }
+    }
+  }
+  
+  getPercepts(){ let c=this.grid[this.agent.r][this.agent.c]; return {breeze:c.breeze,stench:c.stench,glitter:c.glitter}; }
+  
+  moveTo(nr,nc){
+    if(!this.alive||this.won) return false;
+    this.agent.r=nr; this.agent.c=nc; this.moves++;
+    let key=`${nr},${nc}`; this.visitedSet.add(key); this.grid[nr][nc].visited=true;
+    let cell=this.grid[nr][nc]; this.addPerceptFact(nr,nc);
+    if(cell.hasPit){ this.alive=false; return false; }
+    if(cell.hasWumpus){ this.alive=false; return false; }
+    if(cell.hasGold){ this.won=true; return true; }
+    this.updateInferences(); return true;
+  }
+  
+  getNextMove(){
+    if(this.won||!this.alive) return null;
+    let candidates=[], q=[{r:this.agent.r,c:this.agent.c,path:[]}], seen=new Set();
+    for(let vis of this.visitedSet){
+      let [vr,vc]=vis.split(',').map(Number);
+      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        let nr=vr+dr,nc=vc+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)){
+          if(this.safeSet.has(`${nr},${nc}`)||!this.unsafeSet.has(`${nr},${nc}`)) candidates.push([nr,nc]);
+        }
+      }
+    }
+    if(candidates.length===0){ this.stuck=true; return null; }
+    seen.add(`${this.agent.r},${this.agent.c}`);
+    while(q.length){
+      let {r,c,path}=q.shift();
+      if(candidates.some(([fr,fc])=>fr===r&&fc===c)) return path.length===0?[r,c]:path[0];
+      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        let nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!seen.has(`${nr},${nc}`)){
+          let key=`${nr},${nc}`;
+          if(this.visitedSet.has(key)||this.safeSet.has(key)||!this.unsafeSet.has(key)){
+            seen.add(key); q.push({r:nr,c:nc,path:[...path,[nr,nc]]});
+          }
+        }
+      }
+    }
+    return null;
+  }
+  
+  step(){
+    if(this.won||!this.alive||this.stuck) return {type:this.won?"won":(this.alive?(this.stuck?"stuck":"done"):"died")};
+    let move=this.getNextMove();
+    if(!move){ this.stuck=true; return {type:"stuck"}; }
+    let [nr,nc]=move;
+    let gold=this.moveTo(nr,nc);
+    if(!this.alive) return {type:"died",r:nr,c:nc};
+    if(gold) return {type:"won"};
+    return {type:"move",r:nr,c:nc};
+  }
+  
+  getState(){
+    let gridRep=[];
+    for(let i=0;i<this.rows;i++){
+      let row=[];
+      for(let j=0;j<this.cols;j++){
+        let cell=this.grid[i][j];
+        row.push({
+          r:i,c:j,has_pit:cell.hasPit,has_wumpus:cell.hasWumpus,has_gold:cell.hasGold,
+          is_visited:this.visitedSet.has(`${i},${j}`),is_safe:this.safeSet.has(`${i},${j}`),
+          is_unsafe:this.unsafeSet.has(`${i},${j}`),breeze:cell.breeze,stench:cell.stench,
+          glitter:cell.glitter,is_agent:(i===this.agent.r&&j===this.agent.c&&this.alive&&!this.won)
+        });
+      }
+      gridRep.push(row);
+    }
+    let fc=0;
+    for(let vis of this.visitedSet){
+      let [vr,vc]=vis.split(',').map(Number);
+      for(let [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        let nr=vr+dr,nc=vc+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols&&!this.visitedSet.has(`${nr},${nc}`)) fc++;
+      }
+    }
+    return {
+      rows:this.rows,cols:this.cols,grid:gridRep,
+      agent_row:this.agent.r,agent_col:this.agent.c,
+      agent_status:this.won?"won":(!this.alive?"dead":(this.stuck?"stuck":"active")),
+      moves:this.moves,inf_steps:this.infSteps,safe_count:this.safeSet.size,
+      kb_size:this.kb.size,current_percepts:this.getPercepts(),
+      visited_count:this.visitedSet.size,frontier_count:fc,unsafe_count:this.unsafeSet.size,
+      done:(this.won||!this.alive||this.stuck),kb_recent:Array.from(this.kb).slice(-3)
+    };
+  }
 }
 
-function updateMetrics(state) {
-  animateNum('m-inf',   state.inf_steps);
-  animateNum('m-moves', state.moves);
-  animateNum('m-safe',  state.safe_count);
-  animateNum('m-kb',    state.kb_size);
+// UI Controller
+let game=null, autoActive=false, stepRunning=false;
+
+function addLog(level,msg){
+  let logDiv=document.getElementById('logBody');
+  let entry=document.createElement('div'); entry.className=`log-entry ${level}`;
+  let time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  entry.innerHTML=`<span class="log-time">${time}</span><span class="log-msg">${msg}</span>`;
+  logDiv.appendChild(entry); entry.scrollIntoView({block:'nearest'});
+  while(logDiv.children.length>200) logDiv.removeChild(logDiv.firstChild);
 }
-function animateNum(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const prev = parseInt(el.textContent) || 0;
-  if (prev !== val) {
-    el.textContent = val;
-    el.parentElement.style.transform = 'scale(1.04)';
-    setTimeout(() => el.parentElement.style.transform = '', 200);
+
+function renderUI(){
+  if(!game) return;
+  let s=game.getState();
+  let gridDiv=document.getElementById('game-grid');
+  gridDiv.style.gridTemplateColumns=`repeat(${s.cols}, var(--cell))`;
+  gridDiv.innerHTML='';
+  for(let i=0;i<s.rows;i++) for(let j=0;j<s.cols;j++){
+    let cell=s.grid[i][j];
+    let cls='cell',icon='·',label='';
+    if(cell.is_agent){ cls+=' cell-agent'; icon='🤖'; label='AG'; }
+    else if(cell.is_visited&&cell.is_unsafe){ cls+=' cell-pit'; icon='🕳️'; }
+    else if(cell.has_pit&&s.done){ cls+=' cell-pit'; icon='🕳️'; }
+    else if(cell.has_wumpus&&s.done){ cls+=' cell-wumpus'; icon='👹'; }
+    else if(cell.has_gold&&s.done){ cls+=' cell-gold'; icon='💰'; }
+    else if(cell.is_visited){ cls+=' cell-visited'; icon='✓'; }
+    else if(cell.is_unsafe){ cls+=' cell-danger'; icon='⚠️'; }
+    else if(cell.is_safe){ cls+=' cell-safe-inferred'; icon='◈'; }
+    else cls+=' cell-unknown';
+    let perc='';
+    if(cell.is_visited&&!cell.is_agent){
+      if(cell.breeze) perc+='💨'; if(cell.stench) perc+='🌫️'; if(cell.glitter) perc+='✨';
+    }
+    let div=document.createElement('div'); div.className=cls;
+    div.innerHTML=`<span class="cell-coord">${cell.r},${cell.c}</span><span class="cell-icon">${icon}</span>${label?`<span class="cell-label">${label}</span>`:''}${perc?`<div class="cell-percepts">${perc}</div>`:''}`;
+    gridDiv.appendChild(div);
+  }
+  document.getElementById('infSteps').innerText=s.inf_steps;
+  document.getElementById('moveCount').innerText=s.moves;
+  document.getElementById('safeCount').innerText=s.safe_count;
+  document.getElementById('kbSize').innerText=s.kb_size;
+  let p=s.current_percepts;
+  let percDiv=document.getElementById('perceptRow');
+  percDiv.innerHTML='';
+  if(!p.breeze&&!p.stench&&!p.glitter) percDiv.innerHTML='<span>— no percept —</span>';
+  else{ if(p.breeze) percDiv.innerHTML+='💨 BREEZE '; if(p.stench) percDiv.innerHTML+='👃 STENCH '; if(p.glitter) percDiv.innerHTML+='✨ GLITTER'; }
+  document.getElementById('agentStatusBar').innerHTML=`📍 (${s.agent_row},${s.agent_col}) · ${s.agent_status.toUpperCase()} · moves:${s.moves}`;
+  document.getElementById('kbPreview').innerText=(s.kb_recent||[]).join('\n')||'—';
+}
+
+async function stepGame(){
+  if(!game||stepRunning) return;
+  let s=game.getState();
+  if(s.done){ if(autoActive) stopAuto(); return; }
+  stepRunning=true;
+  let result=game.step();
+  if(result.type==='move') addLog('move',`→ moved to (${result.r},${result.c})`);
+  else if(result.type==='died'){ addLog('danger','☠️ Died'); stopAuto(); }
+  else if(result.type==='won'){ addLog('win','✨ GOLD FOUND! Victory! ✨'); stopAuto(); }
+  else if(result.type==='stuck'){ addLog('danger','⚠️ STUCK'); stopAuto(); }
+  renderUI();
+  stepRunning=false;
+  if(autoActive && !game.getState().done){
+    setTimeout(()=>{ if(autoActive) stepGame(); }, parseInt(document.getElementById('speedInput').value));
   }
 }
-function updatePercepts(state) {
-  const row = document.getElementById('percept-row');
-  const p = state.current_percepts;
-  row.innerHTML = '';
-  if (!p.breeze && !p.stench && !p.glitter) {
-    row.innerHTML = '<span class="percept-chip pc-none">NONE</span>';
-  } else {
-    if (p.breeze)  row.innerHTML += '<span class="percept-chip pc-breeze">💨 BREEZE</span>';
-    if (p.stench)  row.innerHTML += '<span class="percept-chip pc-stench">🟣 STENCH</span>';
-    if (p.glitter) row.innerHTML += '<span class="percept-chip pc-glitter">✨ GLITTER</span>';
-  }
-}
-function updateAgentStatus(state) {
-  const bar = document.getElementById('agent-status');
-  bar.textContent = `POS: (${state.agent_row},${state.agent_col})  |  STATUS: ${state.agent_status.toUpperCase()}  |  MOVES: ${state.moves}`;
-  bar.style.color = state.agent_status === 'dead' ? 'var(--red)'
-                  : state.agent_status === 'won'  ? 'var(--amber)'
-                  : state.agent_status === 'stuck'? 'var(--amber)'
-                  : 'var(--cyan)';
-  document.getElementById('a-visited').textContent = state.visited_count;
-  document.getElementById('a-frontier').textContent = state.frontier_count;
-  document.getElementById('a-unsafe').textContent = state.unsafe_count;
-}
-function updateKBPreview(state) {
-  const box = document.getElementById('kb-preview');
-  box.textContent = (state.kb_recent || []).join('\n') || '—';
-  box.scrollTop = box.scrollHeight;
-}
-function renderStepLog(entries) {
-  if (!entries || !entries.length) return;
-  const newEntries = entries.slice(logEntries - entries.length);
-  newEntries.forEach(e => addLog(e.level, e.msg));
-  logEntries = entries.length;
-}
-function addLog(level, msg) {
-  const body = document.getElementById('log-body');
-  const div = document.createElement('div');
-  div.className = `log-entry ${level}`;
-  const now = new Date();
-  const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-  div.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg">${escHtml(msg)}</span>`;
-  body.appendChild(div);
-  body.scrollTop = body.scrollHeight;
-  while (body.children.length > 300) body.removeChild(body.firstChild);
-}
-function clearLog() {
-  document.getElementById('log-body').innerHTML = '';
-  logEntries = 0;
-}
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function showBanner(msg, type) {
-  const el = document.getElementById('status-banner');
-  el.textContent = msg;
-  el.className = `status-banner show ${type}`;
-  setEnabled('btn-auto', false);
-  setEnabled('btn-step', false);
-}
-function hideBanner() {
-  document.getElementById('status-banner').className = 'status-banner';
-}
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function intVal(id) { return parseInt(document.getElementById(id).value) || 0; }
-function setEnabled(id, v) { document.getElementById(id).disabled = !v; }
-function showOverlay(v) { document.getElementById('overlay').className = v ? 'overlay show' : 'overlay'; }
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'n' || e.key === 'N')  newGame();
-  if (e.key === ' ') { e.preventDefault(); if (lastState && !lastState.done) toggleAuto(); }
-  if (e.key === 's' || e.key === 'S')  stepOnce();
-});
+function newGame(){
+  stopAuto();
+  let rows=Math.min(6,Math.max(3,parseInt(document.getElementById('rowsInput').value)));
+  let cols=Math.min(6,Math.max(3,parseInt(document.getElementById('colsInput').value)));
+  let pits=Math.min(rows*cols-3,Math.max(1,parseInt(document.getElementById('pitsInput').value)));
+  game=new WumpusWorld(rows,cols,pits);
+  addLog('info',`🌲 New game ${rows}x${cols}, pits:${pits}`);
+  renderUI();
+  document.getElementById('autoBtn').disabled=false;
+  document.getElementById('stepBtn').disabled=false;
+}
 
-window.addEventListener('load', () => {
-  addLog('info',  '╔══════════════════════════════════════════╗');
-  addLog('info',  '║  WUMPUS WORLD — Knowledge-Based Agent   ║');
-  addLog('info',  '║  Resolution Refutation · CNF Logic      ║');
-  addLog('info',  '╚══════════════════════════════════════════╝');
-  addLog('info',  '');
-  addLog('info',  'HOW IT WORKS:');
-  addLog('kb',    '  TELL KB: Breeze(r,c) ↔ Pit(n1) ∨ Pit(n2) ∨ ...');
-  addLog('kb',    '  ASK KB : Prove ¬Pit(x,y) via Resolution');
-  addLog('kb',    '  If empty clause □ derived → contradiction → safe!');
-  addLog('info',  '');
-  addLog('info',  'SHORTCUTS: [N] New  [SPACE] Auto  [S] Step');
-  addLog('info',  '');
-  addLog('proof', 'Click "New Game" to begin!');
-});
+function toggleAuto(){ autoActive?stopAuto():startAuto(); }
+function startAuto(){
+  if(!game||game.getState().done) return;
+  autoActive=true;
+  let btn=document.getElementById('autoBtn');
+  btn.innerText='⏸ PAUSE'; btn.classList.add('btn-pause');
+  stepGame();
+}
+function stopAuto(){
+  autoActive=false;
+  let btn=document.getElementById('autoBtn');
+  if(btn){ btn.innerText='▶ AUTO'; btn.classList.remove('btn-pause'); }
+}
+
+document.getElementById('newGameBtn').onclick=newGame;
+document.getElementById('autoBtn').onclick=toggleAuto;
+document.getElementById('stepBtn').onclick=()=>{ if(!autoActive&&game&&!game.getState().done) stepGame(); };
+document.getElementById('clearLogBtn').onclick=()=>{ document.getElementById('logBody').innerHTML=''; addLog('info','Log cleared'); };
+window.onload=newGame;
 </script>
 </body>
 </html>
